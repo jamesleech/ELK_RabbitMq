@@ -1,52 +1,48 @@
-elasticsearch:
-  build: elasticsearch/
-  volumes:
-    - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
-    - /mnt/esdata/instance:/usr/share/elasticsearch/data
-  ports:
-    - "9200:9200"
-    - "9300:9300"
+version: '2'
+services:
+  elasticsearch:
+    build:
+      context: ./elasticsearch
+    volumes:
+      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+      #- /mnt/esdata/instance:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
 
-logstash_input:
-  image: logstash:latest
-  command: logstash -f /etc/logstash/conf.d/*.conf
-  volumes:
-    - ./logstash/configInput:/etc/logstash/conf.d
+  logstash_input:
+    build:
+      context: ./logstash/input/
+    ports:
+      - "5000:5000"
+      - "8080:8080"
+      - "31311:31311"
+      - "5044:5044"
+    links:
+      - rabbitmq
 
-  ports:
-    - "5000:5000"
-    - "8080:8080"
-    - "31311:31311"
-    - "5044:5044"
+  logstash_filter:
+    build:
+      context: ./logstash/filter
+    links:
+      - elasticsearch
+      - rabbitmq
 
+  kibana:
+    build: kibana/
+    volumes:
+      - ./kibana/config/:/opt/kibana/config/
+    ports:
+      - "80:5601"
+    links:
+      - elasticsearch
 
-logstash_filter:
-  build: logstash/
-  command: logstash -f /etc/logstash/conf.d/logstash.conf
-  volumes:
-    - ./logstash/configFilter:/etc/logstash/conf.d
-
-  links:
-    - elasticsearch
-
-kibana:
-  build: kibana/
-  volumes:
-    - ./kibana/config/:/opt/kibana/config/
-  ports:
-    - "5601:5601"
-  links:
-    - elasticsearch
-
-rabbitmq:
-  build: rabbitmq/
-  ports:
-    - "1883:1883" 
-    - "4369:4369"
-    - "5671:5671"
-    - "5672:5672"
-    - "15672:15672"
-    - "25672:25672"
-  links:
-    - logstash_input
-    - logstash_filter
+  rabbitmq:
+    build: ./rabbitmq/
+    ports:
+      - "1883:1883"
+      - "4369:4369"
+      - "5671:5671"
+      - "5672:5672"
+      - "15672:15672"
+      - "25672:25672"
